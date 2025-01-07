@@ -47,20 +47,63 @@ sudo pg_lsclusters
 ![2 Зашли из под пользователя postgres в psql, создали таблицу test, заполнили таблицу 1 значением](https://github.com/user-attachments/assets/58103714-2e55-4247-a4a6-e5cb1ee944f6)
 
 
-Далее остановил postgres через:
+Просмотрел файл postgresql.conf:
 
-sudo -u postgres pg_ctlcluster 17 main stop:
-![3 Остановили postgres через sudo -u postgres pg_ctlcluster 17 main stop](https://github.com/user-attachments/assets/1e981566-d2d6-4f9f-9dff-c0e0c7e4dc8a)
+sudo nano /etc/postgresql/17/main/postgresql.conf
 
-Далее на YC создал и подключил диск:
-![4 Создали диск](https://github.com/user-attachments/assets/ec71a7ac-bf98-4d58-949d-f8bdd1665758)
-![4_1 Подключили диск](https://github.com/user-attachments/assets/a108e88b-d985-4622-ab88-96fc728f282f)
+Проверил куда ссылается параметр data_directory:
 
-Далее перезапустил кластер:
-sudo -u postgres pg_ctlcluster 17 main start
-![5  Перезапустил кластер - sudo -u postgres pg_ctlcluster 17 main start](https://github.com/user-attachments/assets/4ed2637c-f50b-475d-81c9-03600fb0a7e0)
+data_directory = '/var/lib/postgresql/17/main'
+
+![555_Куда ссылается параметр data_directory](https://github.com/user-attachments/assets/38ad91a4-6ad0-4ec2-9d1a-1bbd6ea59901)
 
 
-Далее зашёл через psql и проверил содержимое ранее созданной таблицы:
-![6 Зашёл через psql и проверил содержимое ранее созданной таблицы](https://github.com/user-attachments/assets/71afd37b-a79c-45a0-ae53-f5b08cfe79bf)
+
+При создании ВМ сразу указал 2 диска:
+
+Новый диск: vdb
+
+![555_Подключено 2 диска](https://github.com/user-attachments/assets/7c7cd597-7bec-478b-b5cc-e454a2a7fd73)
+
+
+Смонтировал новый диск, проверил его состояние, UID:
+
+/dev/vdb1: UUID="eb3a25eb-d433-4a94-8444-75cfe4474153" BLOCK_SIZE="4096" TYPE="ext4" PARTLABEL="primary" PARTUUID="853e152b-c497-49db-a0ae-4528a78c8165"
+
+
+![555_Смонтировал новый диск, просмотрел состояние диска](https://github.com/user-attachments/assets/f2e9a480-23e8-4e3b-a025-17a818eb7f44)
+
+
+
+Далее создал каталог mnt22 и подключил раздел vdb1 к новому каталогу mnt22:
+
+sudo mkdir /mnt22
+sudo mount /dev/vdb1 /mnt22
+
+![555_Создал каталог mnt22 и подключил раздел vdb1 к новому каталогу mnt22](https://github.com/user-attachments/assets/d7ed6142-8d84-4da6-aa4a-43ac677e8f1d)
+
+
+Далее сделал пользователя postgres владельцем mnt22:
+
+![555_Сделал пользователя postgres владельцем mnt22](https://github.com/user-attachments/assets/19ce4ad1-2ab0-41d2-8d88-0afa28e82bfb)
+
+
+Далее скопировал данные из /var/lib/postgresql/17/main в mnt22 и перезапустил кластер:
+
+sudo mv /var/lib/postgresql/17/main /mnt22
+
+sudo pg_ctlcluster 17 main restart
+
+![555_Скопировал данные в mnt22 и перезапустил кластер](https://github.com/user-attachments/assets/30ead841-8f59-4a6f-bf8e-4dc9cfc7a7c3)
+
+
+
+Далее поменял в файле postgresql.conf путь у data_directory на /mnt22
+
+![555_Содержимое файла postgresql conf после изменения пути data_directory](https://github.com/user-attachments/assets/0a16f308-6b6f-4baf-a788-9dcedca52859)
+
+
+
+Содержание папки mnt22 (похоже копирование не произошло): 
+![555_Содержимое папки mnt22](https://github.com/user-attachments/assets/f2edeeea-1123-4da4-a0f2-4bd427911117)
 
