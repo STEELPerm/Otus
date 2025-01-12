@@ -93,19 +93,6 @@ pg_lsclusters
 
 
 
-<br><b>Запускаем 2-й расширенный тест со стандартными настройками:</b>
-<br>pgbench -U postgres -h 0.0.0.0 -c 50 -j 2 -P 10 -T 60 test
-<br>Результат:
-<br>duration: 60 s
-<br>number of transactions actually processed: 14900
-<br>number of failed transactions: 0 (0.000%)
-<br>latency average = 200.027 ms
-<br>latency stddev = 273.561 ms
-<br>initial connection time = 515.139 ms
-<br><b>tps = 249.443649 (without initial connection time)</b>
-<br>
-![08_2 Проведение 3го теста со стандартными настройками](https://github.com/user-attachments/assets/4029d193-ffd0-4001-8342-228ea5b21566)
-
 
 <br><b>Запускаем 2-й расширенный тест с новыми настройками:</b>
 <br>pgbench -U postgres -h 0.0.0.0 -c 50 -j 2 -P 10 -T 60 test
@@ -145,7 +132,22 @@ pg_lsclusters
 <br>
 ![08_1 Проведение 3го теста с новыми настройками](https://github.com/user-attachments/assets/03cc82c0-6e97-42a6-89fa-fe49dd9c0786)
 
-<br><b>Результаты 2-го теста немного лучше с дополнительными настройкаим.</b>
+
+<br><b>Запускаем 2-й расширенный тест со стандартными настройками:</b>
+<br>pgbench -U postgres -h 0.0.0.0 -c 50 -j 2 -P 10 -T 60 test
+<br>Результат:
+<br>duration: 60 s
+<br>number of transactions actually processed: 14900
+<br>number of failed transactions: 0 (0.000%)
+<br>latency average = 200.027 ms
+<br>latency stddev = 273.561 ms
+<br>initial connection time = 515.139 ms
+<br><b>tps = 249.443649 (without initial connection time)</b>
+<br>
+![08_2 Проведение 3го теста со стандартными настройками](https://github.com/user-attachments/assets/4029d193-ffd0-4001-8342-228ea5b21566)
+
+
+<br><b>Результаты 2-го теста лучше с дополнительными настройкаим.</b>
 <br>
 <br>
 <br>Настройки были сгенерированны на сайте https://www.pgconfig.org
@@ -156,4 +158,7 @@ pg_lsclusters
 <br>
 ![11 настройки виртуальной машины](https://github.com/user-attachments/assets/b60d65ac-c87f-49bd-899c-60da66ea8fe3)
 
+<br><br>Дашборд с нагрузками к базе:
+<br>
+![09 Дашборд с нагрузками](https://github.com/user-attachments/assets/f51cc3a7-2390-4b53-8ec4-69905c551a16)
 
