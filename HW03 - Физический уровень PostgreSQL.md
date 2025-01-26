@@ -30,32 +30,47 @@ postgres=# insert into test values('1');
 задание со звездочкой *: не удаляя существующий инстанс ВМ сделайте новый, поставьте на его PostgreSQL, удалите файлы с данными из /var/lib/postgres, перемонтируйте внешний диск который сделали ранее от первой виртуальной машины ко второй и запустите PostgreSQL на второй машине так чтобы он работал с данными на внешнем диске, расскажите как вы это сделали и что в итоге получилось.
 
 # Выполнение
-Создана ВМ в Яндекс облаке, сгенерирован SSH ключ. Подключение к ВМ через Putty и установка на нее PostgreSQL 17 через sudo apt:
+Создана ВМ в Яндекс облаке, сгенерирован SSH ключ.
 
-sudo sh -c 'echo "deb http://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" > /etc/apt/sources.list.d/pgdg.list'
+Подключились к ВМ:
+ssh -i ~/yc_key otus@51.250.42.122
 
-wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+
+Установка Postgresql:
 
 sudo apt-get update
+
 sudo apt-get -y install postgresql
+
 sudo pg_lsclusters 
 
-![1 Установка PostgreSQL через sudo apt, проверка, что кластер запущен через sudo -u postgres pg_lsclusters](https://github.com/user-attachments/assets/07af4baf-fc6e-4806-803b-19c913fc614a)
+Зашли из под пользователя postgres в psql:
+
+sudo -u postgres psql
+
+
+![01 Установка postgresql на ВМ в YC](https://github.com/user-attachments/assets/560b6118-4f44-4065-8195-81dd6adfee33)
+
+
+
 
 Далее зашёл из под пользователя postgres в psql, создал таблицу test, заполнил таблицу 1 значением:
 
-![2 Зашли из под пользователя postgres в psql, создали таблицу test, заполнили таблицу 1 значением](https://github.com/user-attachments/assets/58103714-2e55-4247-a4a6-e5cb1ee944f6)
+![01_1 Создали таблицу и поменяли пароль](https://github.com/user-attachments/assets/2abea28c-32f4-4fc5-b0df-2279ea555b6c)
+
+
 
 
 Просмотрел файл postgresql.conf:
 
-sudo nano /etc/postgresql/17/main/postgresql.conf
+sudo nano /etc/postgresql/16/main/postgresql.conf
 
 Проверил куда ссылается параметр data_directory:
 
-data_directory = '/var/lib/postgresql/17/main'
+data_directory = '/var/lib/postgresql/16/main'
 
-![555_Куда ссылается параметр data_directory](https://github.com/user-attachments/assets/38ad91a4-6ad0-4ec2-9d1a-1bbd6ea59901)
+![02 Куда ссылается параметр data_directory](https://github.com/user-attachments/assets/f52f3223-995e-47c6-ada5-6c777dd81ee0)
+
 
 
 
@@ -63,54 +78,72 @@ data_directory = '/var/lib/postgresql/17/main'
 
 Новый диск: vdb
 
-![555_Подключено 2 диска](https://github.com/user-attachments/assets/7c7cd597-7bec-478b-b5cc-e454a2a7fd73)
+![03 просмотр дисков](https://github.com/user-attachments/assets/3396d442-aba7-41b5-b22d-d6bf2330cf37)
 
+
+
+<br><b>Из замечания по ДЗ</b>
+
+Выполнена разметка нового раздела в файловую систему:
+
+parted /dev/vdb mklabel gpt
+
+parted -a optimal -s /dev/vdb mkpart primary ext4 0% 100%
+
+mkfs.ext4 /dev/vdb1
 
 Смонтировал новый диск, проверил его состояние, UID:
 
-/dev/vdb1: UUID="eb3a25eb-d433-4a94-8444-75cfe4474153" BLOCK_SIZE="4096" TYPE="ext4" PARTLABEL="primary" PARTUUID="853e152b-c497-49db-a0ae-4528a78c8165"
+/dev/vdb1: UUID="4e711576-7dd0-4cc0-881d-ff2c32b1d909" BLOCK_SIZE="4096" TYPE="ext4" PARTLABEL="primary" PARTUUID="4d3a4dee-df0b-4bf2-a44f-11b89ffd00f9"
 
 
-![555_Смонтировал новый диск, просмотрел состояние диска](https://github.com/user-attachments/assets/f2e9a480-23e8-4e3b-a025-17a818eb7f44)
+![04 разметка нового раздела в файловую систему](https://github.com/user-attachments/assets/1e4752c4-d5bf-4858-a329-015d1264fcb8)
 
 
 
 Далее создал каталог mnt22 и подключил раздел vdb1 к новому каталогу mnt22:
 
 sudo mkdir /mnt22
+
 sudo mount /dev/vdb1 /mnt22
 
-![555_Создал каталог mnt22 и подключил раздел vdb1 к новому каталогу mnt22](https://github.com/user-attachments/assets/d7ed6142-8d84-4da6-aa4a-43ac677e8f1d)
+Сделал пользователя postgres владельцем mnt22:
+sudo chown -R postgres:postgres /mnt22/
+
+![05 Создание каталога mnt22 и подключил раздел vdb1 к этому новому каталогу](https://github.com/user-attachments/assets/2a823a9b-2445-4516-bc7f-274fa5d3a89b)
 
 
-Далее сделал пользователя postgres владельцем mnt22:
 
-![555_Сделал пользователя postgres владельцем mnt22](https://github.com/user-attachments/assets/19ce4ad1-2ab0-41d2-8d88-0afa28e82bfb)
+Далее скопировал данные из /var/lib/postgresql/16/main в mnt22 и перезапустил кластер:
+
+sudo mv /var/lib/postgresql/16/main /mnt22
 
 
-Далее скопировал данные из /var/lib/postgresql/17/main в mnt22 и перезапустил кластер:
+<b>Перезапуск кластера не сработал:</b>
 
-sudo mv /var/lib/postgresql/17/main /mnt22
+sudo pg_ctlcluster 16 main restart 
 
-sudo pg_ctlcluster 17 main restart
+Error: /var/lib/postgresql/16/main is not accessible or does not exist
 
-![555_Скопировал данные в mnt22 и перезапустил кластер](https://github.com/user-attachments/assets/30ead841-8f59-4a6f-bf8e-4dc9cfc7a7c3)
+![06_Скопировал данные в mnt22](https://github.com/user-attachments/assets/7edd27c2-9569-4061-8b34-810a7165ac61)
 
 
 
 Далее поменял в файле postgresql.conf путь у data_directory на /mnt22
-
-![555_Содержимое файла postgresql conf после изменения пути data_directory](https://github.com/user-attachments/assets/0a16f308-6b6f-4baf-a788-9dcedca52859)
-
+![07 Содержимое файла postgresql conf после изменения пути data_directory](https://github.com/user-attachments/assets/34c1a6c3-df53-4c5f-ab3f-f85f55ab595d)
 
 
-Содержание папки mnt22 (похоже копирование не произошло): 
-![555_Содержимое папки mnt22](https://github.com/user-attachments/assets/f2edeeea-1123-4da4-a0f2-4bd427911117)
+В итоге не заходит в postgresql:
+![08 не заходит в postgresql](https://github.com/user-attachments/assets/9ec7ec0e-298c-445c-9cee-10d5c5edc74a)
 
 
-Похоже, что копирование не прошло(( Хотя видно, что на новом диске стало занято больше места, и в мониторинге яндекса тоже видно, что было копирование.
+Мониторинг ВМ:
 
-![555_Мониторинг нового диска после копирования](https://github.com/user-attachments/assets/92e3dcfd-0598-4c14-9345-73520ac802de)
+![Мониторинг ВМ](https://github.com/user-attachments/assets/c3298cac-c539-43ab-af7e-cd976e071fd9)
 
-![555_Занято места на новом диске](https://github.com/user-attachments/assets/1007de90-0890-4803-bff3-51fdd2aeb51c)
+
+Занято места на новом диске:
+![место на диске](https://github.com/user-attachments/assets/98f6fc97-4d50-475b-9a04-702e16664c80)
+
+
 
