@@ -32,9 +32,6 @@ postgres=# insert into test values('1');
 # Выполнение
 Создана ВМ в Яндекс облаке, сгенерирован SSH ключ.
 
-Подключились к ВМ:
-ssh -i ~/yc_key otus@51.250.42.122
-
 
 Установка Postgresql:
 
@@ -48,16 +45,9 @@ sudo pg_lsclusters
 
 sudo -u postgres psql
 
+Создал таблицу и заполнил тестовым значением:
 
-![01 Установка postgresql на ВМ в YC](https://github.com/user-attachments/assets/560b6118-4f44-4065-8195-81dd6adfee33)
-
-
-
-
-Далее зашёл из под пользователя postgres в psql, создал таблицу test, заполнил таблицу 1 значением:
-
-![01_1 Создали таблицу и поменяли пароль](https://github.com/user-attachments/assets/2abea28c-32f4-4fc5-b0df-2279ea555b6c)
-
+![01 Установка postgresql и создание таблицы](https://github.com/user-attachments/assets/23b8a02b-083f-4da7-8c48-8562587e173a)
 
 
 
@@ -69,81 +59,63 @@ sudo nano /etc/postgresql/16/main/postgresql.conf
 
 data_directory = '/var/lib/postgresql/16/main'
 
-![02 Куда ссылается параметр data_directory](https://github.com/user-attachments/assets/f52f3223-995e-47c6-ada5-6c777dd81ee0)
-
-
 
 
 При создании ВМ сразу указал 2 диска:
 
 Новый диск: vdb
 
-![03 просмотр дисков](https://github.com/user-attachments/assets/3396d442-aba7-41b5-b22d-d6bf2330cf37)
+
+
+<br><b>Далее из замечаний по ДЗ:</b>
+
+<br>5) добавляем диск и смотрим, есть ли он
+<br>sudo parted -l | grep Error - должна появиться ошибка с нераспознанной меткой диска
+<br>6) проверяем, что диск виден, но не размечен
+<br>lsblk
+![02 Проверяем что диск виден](https://github.com/user-attachments/assets/95814278-ab30-4632-b515-e9605331bf86)
+
+
+<br>7) форматируем и размечаем диск
+<br>sudo parted /dev/vdb mklabel gpt
+<br>sudo parted -a opt /dev/vdb mkpart primary ext4 0% 100%
+<br>sudo mkfs.ext4 -L datapartition /dev/vdb1
+<br>8) проверяем, что раздел создался и с диском все ок:
+<br>sudo lsblk -o NAME,FSTYPE,LABEL,UUID | grep -v loop
+
+![03 форматируем и размечаем диск](https://github.com/user-attachments/assets/572b909c-f048-4ef3-89ea-7710e250b734)
+
+
+<br>9) создаем на диске папку и монтируем этот диск
+<br>sudo mkdir -p /mnt/data
+<br>sudo mount -a
+<br>10) перезагружаемся
+<br>sync; sudo reboot
+<br>11) после перезагрузки проверяем, что с диском все еще все ок:
+<br>df -h /mnt/data
+
+![04_1 создаем на диске папку и монтируем этот диск](https://github.com/user-attachments/assets/9e4f37c6-544a-4f8f-9bc3-5e33cc9300a4)
 
 
 
-<br><b>Из замечания по ДЗ</b>
-
-Выполнена разметка нового раздела в файловую систему:
-
-parted /dev/vdb mklabel gpt
-
-parted -a optimal -s /dev/vdb mkpart primary ext4 0% 100%
-
-mkfs.ext4 /dev/vdb1
-
-Смонтировал новый диск, проверил его состояние, UID:
-
-/dev/vdb1: UUID="4e711576-7dd0-4cc0-881d-ff2c32b1d909" BLOCK_SIZE="4096" TYPE="ext4" PARTLABEL="primary" PARTUUID="4d3a4dee-df0b-4bf2-a44f-11b89ffd00f9"
+<br>12) выдаем права пользователю postgres
+<br>sudo chown -R postgres:postgres /mnt/data/
+<br>13) перемещаем все в /mnt/data
+<br>sudo mv /var/lib/postgresql/16 /mnt/data
+<br>14) редактируем postgresql.conf
+<br>15) запускаем сервис postgresql и сам кластер:
+<br>sudo systemctl start postgresql.service
+<br>sudo -u postgres pg_ctlcluster 16 main start
 
 
-![04 разметка нового раздела в файловую систему](https://github.com/user-attachments/assets/1e4752c4-d5bf-4858-a329-015d1264fcb8)
+![05_1 Переместили в Mnt и отредактировали postgresql conf](https://github.com/user-attachments/assets/34d4059d-ac2b-4e27-a60a-31bae38dd0c4)
 
+<br><b>Не получилось. вышла ошибка:<b>
+<br>directory "/mnt/data" is not a database cluster directory
 
+<br>Пробовал перезагружать ВМ, сервис, кластер, менял data_directory на "/mnt" - всё-равно ошибка...
+<br>Параметр data_directory в postgresql.conf:
+<br>data_directory = '/mnt/data'
 
-Далее создал каталог mnt22 и подключил раздел vdb1 к новому каталогу mnt22:
-
-sudo mkdir /mnt22
-
-sudo mount /dev/vdb1 /mnt22
-
-Сделал пользователя postgres владельцем mnt22:
-sudo chown -R postgres:postgres /mnt22/
-
-![05 Создание каталога mnt22 и подключил раздел vdb1 к этому новому каталогу](https://github.com/user-attachments/assets/2a823a9b-2445-4516-bc7f-274fa5d3a89b)
-
-
-
-Далее скопировал данные из /var/lib/postgresql/16/main в mnt22 и перезапустил кластер:
-
-sudo mv /var/lib/postgresql/16/main /mnt22
-
-
-<b>Перезапуск кластера не сработал:</b>
-
-sudo pg_ctlcluster 16 main restart 
-
-Error: /var/lib/postgresql/16/main is not accessible or does not exist
-
-![06_Скопировал данные в mnt22](https://github.com/user-attachments/assets/7edd27c2-9569-4061-8b34-810a7165ac61)
-
-
-
-Далее поменял в файле postgresql.conf путь у data_directory на /mnt22
-![07 Содержимое файла postgresql conf после изменения пути data_directory](https://github.com/user-attachments/assets/34c1a6c3-df53-4c5f-ab3f-f85f55ab595d)
-
-
-В итоге не заходит в postgresql:
-![08 не заходит в postgresql](https://github.com/user-attachments/assets/9ec7ec0e-298c-445c-9cee-10d5c5edc74a)
-
-
-Мониторинг ВМ:
-
-![Мониторинг ВМ](https://github.com/user-attachments/assets/c3298cac-c539-43ab-af7e-cd976e071fd9)
-
-
-Занято места на новом диске:
-![место на диске](https://github.com/user-attachments/assets/98f6fc97-4d50-475b-9a04-702e16664c80)
-
-
+![06 не стартует кластер](https://github.com/user-attachments/assets/58d0791b-643a-4352-9b23-83b384ad6c42)
 
