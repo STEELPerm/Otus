@@ -46,8 +46,8 @@ sudo pg_lsclusters
 sudo -u postgres psql
 
 Создал таблицу и заполнил тестовым значением:
-
-![01 Установка postgresql и создание таблицы](https://github.com/user-attachments/assets/23b8a02b-083f-4da7-8c48-8562587e173a)
+create table test (c1 text);
+insert into test values('1');
 
 
 
@@ -73,19 +73,12 @@ data_directory = '/var/lib/postgresql/16/main'
 <br>sudo parted -l | grep Error - должна появиться ошибка с нераспознанной меткой диска
 <br>6) проверяем, что диск виден, но не размечен
 <br>lsblk
-![02 Проверяем что диск виден](https://github.com/user-attachments/assets/95814278-ab30-4632-b515-e9605331bf86)
-
-
 <br>7) форматируем и размечаем диск
 <br>sudo parted /dev/vdb mklabel gpt
 <br>sudo parted -a opt /dev/vdb mkpart primary ext4 0% 100%
 <br>sudo mkfs.ext4 -L datapartition /dev/vdb1
 <br>8) проверяем, что раздел создался и с диском все ок:
 <br>sudo lsblk -o NAME,FSTYPE,LABEL,UUID | grep -v loop
-
-![03 форматируем и размечаем диск](https://github.com/user-attachments/assets/572b909c-f048-4ef3-89ea-7710e250b734)
-
-
 <br>9) создаем на диске папку и монтируем этот диск
 <br>sudo mkdir -p /mnt/data
 <br>sudo mount -a
@@ -93,9 +86,7 @@ data_directory = '/var/lib/postgresql/16/main'
 <br>sync; sudo reboot
 <br>11) после перезагрузки проверяем, что с диском все еще все ок:
 <br>df -h /mnt/data
-
-![04_1 создаем на диске папку и монтируем этот диск](https://github.com/user-attachments/assets/9e4f37c6-544a-4f8f-9bc3-5e33cc9300a4)
-
+<br>![01_](https://github.com/user-attachments/assets/9896eea6-a158-4398-8f43-635f49e92a6b)
 
 
 <br>12) выдаем права пользователю postgres
@@ -107,15 +98,71 @@ data_directory = '/var/lib/postgresql/16/main'
 <br>sudo systemctl start postgresql.service
 <br>sudo -u postgres pg_ctlcluster 16 main start
 
+![03_1](https://github.com/user-attachments/assets/ebc0394d-b9ce-44da-8b7d-7ab3138c9eed)
 
-![05_1 Переместили в Mnt и отредактировали postgresql conf](https://github.com/user-attachments/assets/34d4059d-ac2b-4e27-a60a-31bae38dd0c4)
 
-<br><b>Не получилось. вышла ошибка:<b>
-<br>directory "/mnt/data" is not a database cluster directory
+<br><b>Не получилось. вышла ошибка:</b>
 
-<br>Пробовал перезагружать ВМ, сервис, кластер, менял data_directory на "/mnt" - всё-равно ошибка...
-<br>Параметр data_directory в postgresql.conf:
+
+otus@compute-vm-2-2-10-ssd-1739715327843:~$ sudo -u postgres pg_ctlcluster 16 main start
+Warning: the cluster will not be running as a systemd service. Consider using systemctl:
+  sudo systemctl start postgresql@16-main
+Error: /usr/lib/postgresql/16/bin/pg_ctl /usr/lib/postgresql/16/bin/pg_ctl start -D /mnt/data -l /var/log/postgresql/postgresql-16-main.log -s -o  -c config_file="/etc/postgresql/16/main/postgresql.conf"  exited with status 1:
+pg_ctl: directory "/mnt/data" is not a database cluster directory
+
+
+
+<br><b>Параметр data_directory в postgresql.conf:</b>
 <br>data_directory = '/mnt/data'
 
-![06 не стартует кластер](https://github.com/user-attachments/assets/58d0791b-643a-4352-9b23-83b384ad6c42)
+![02_](https://github.com/user-attachments/assets/eca86d07-9dc5-4e9c-aa41-51fef11b888f)
+
+
+<br><b>содержимое /mnt/data:</b>
+
+![04_](https://github.com/user-attachments/assets/2469ce42-5dd0-4fd4-af47-cd6b862e09d4)
+
+
+
+<br><b>Стал разбираться дальше и сделал команды:</b>
+<br>Создал папку: /mnt/data/postgresql/16/main
+<br>sudo mkdir -p /mnt/data/postgresql/16/main
+
+<br>Дал доступ:
+<br>sudo chown -R postgres:postgres /mnt/data/postgresql
+
+
+<br>Создал новую директорию данных, через команду команду initdb:
+<br>sudo -u postgres /usr/lib/postgresql/16/bin/initdb -D /mnt/data/postgresql/16/main
+
+
+<br>Остановил кластер:
+<br>sudo service postgresql stop
+
+<br>Изменил путь к директории данных в файле postgresql.conf
+<br>data_directory='/mnt/data/postgresql/16/main'
+
+<br>Запустил службу
+<br>sudo service postgresql start
+
+<br><b>Кластер стартанул</b>
+<br>![05_](https://github.com/user-attachments/assets/f3222518-094f-4046-bafb-243d65a1e096)
+
+
+<br><b>Но тестовой таблицы уже нет</b>
+<br>Посмотреть доступы схемы:
+<br>postgres=# \dn+
+<br>
+ 
+ public | pg_database_owner | pg_database_owner=UC/pg_database_owner+| standard public schema
+
+
+<br>Попытался дать доступ на схему:
+<br>GRANT ALL ON SCHEMA public TO public;
+
+<br><b>Но никаких таблиц уже нет</b>
+<br>postgres=# \d
+<br>Did not find any relations.
+
+<br>![image](https://github.com/user-attachments/assets/f961fdf6-4c98-4e4f-89a7-7050f95dae5d)
 
